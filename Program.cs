@@ -8,7 +8,7 @@ namespace PSFExtractor
     {
         static int Main(string[] args)
         {
-            Console.WriteLine("PSFExtractor v1.07 - 2021/8/6\nBy th1r5bvn23: https://www.betaworld.cn/\n");
+            Console.WriteLine("PSFExtractor v1.07a (Sep 16 2021) by th1r5bvn23 & abbodi1406\nVisit https://www.betaworld.cn/\n");
             if (args.Length != 1)
             {
                 PrintHelp();
