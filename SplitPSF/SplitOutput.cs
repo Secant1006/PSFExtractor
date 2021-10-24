@@ -48,6 +48,15 @@ namespace PSFExtractor.SplitPSF
                     File.Delete(UsingFileName);
                     File.Move(UsingFileName + "_PA30", UsingFileName);
                 }
+                else if (file.sourceType.Equals("PA19", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!NativeMethods.ApplyDeltaW(1, null, Path.GetFullPath(UsingFileName), Path.GetFullPath(UsingFileName) + "_PA19"))
+                    {
+                        throw new IOException();
+                    }
+                    File.Delete(UsingFileName);
+                    File.Move(UsingFileName + "_PA19", UsingFileName);
+                }
                 File.SetLastWriteTimeUtc(UsingFileName, DateTime.FromFileTimeUtc(file.time));
                 if (LengthExceedsLimit)
                 {
