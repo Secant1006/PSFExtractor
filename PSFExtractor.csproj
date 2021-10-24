@@ -67,8 +67,10 @@
     <Compile Include="SplitPSF\DeltaFile.cs" />
     <Compile Include="SplitPSF\DeltaFileList.cs" />
     <Compile Include="SplitPSF\GenerateFileList.cs" />
+    <Compile Include="SplitPSF\GenerateFileListV1.cs" />
     <Compile Include="SplitPSF\NativeMethod.cs" />
     <Compile Include="SplitPSF\SplitOutput.cs" />
+    <Compile Include="SplitPSF\SplitOutputV1.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

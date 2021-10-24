@@ -8,11 +8,12 @@ namespace PSFExtractor
     {
         static int Main(string[] args)
         {
-            Console.WriteLine("PSFExtractor v1.09 (Oct 24 2021) by th1r5bvn23 & abbodi1406\nVisit https://www.betaworld.cn/\n");
+            Console.WriteLine("PSFExtractor v2.00 (Oct 24 2021) by th1r5bvn23 & abbodi1406\nVisit https://www.betaworld.cn/\n");
             string CABFileName;
             string PSFFileName;
             string XMLFileName;
             string DirectoryName;
+            int PSFXVersion = 2;
             switch (args.Length)
             {
                 case 1:
@@ -49,25 +50,38 @@ namespace PSFExtractor
                     }
                     XMLFileName = DirectoryName + Path.DirectorySeparatorChar + "express.psf.cix.xml";
                     break;
-                case 4:
-                    if (!args[0].Equals("-m"))
+                case 5:
+                    if (!args[0].Equals("-m", StringComparison.OrdinalIgnoreCase))
                     {
                         PrintHelp();
                         return 1;
                     }
-                    PSFFileName = args[1];
+                    if (args[1].Equals("-v1", StringComparison.OrdinalIgnoreCase))
+                    {
+                        PSFXVersion = 1;
+                    }
+                    else if(args[1].Equals("-v2", StringComparison.OrdinalIgnoreCase))
+                    {
+                        PSFXVersion = 2;
+                    }
+                    else
+                    {
+                        PrintHelp();
+                        return 1;
+                    }
+                    PSFFileName = args[2];
                     if (!File.Exists(PSFFileName))
                     {
                         PrintError(1);
                         return 1;
                     }
-                    XMLFileName = args[2];
+                    XMLFileName = args[3];
                     if (!File.Exists(XMLFileName))
                     {
                         PrintError(1);
                         return 1;
                     }
-                    DirectoryName = args[3];
+                    DirectoryName = args[4];
                     try
                     {
                         Directory.CreateDirectory(DirectoryName);
@@ -85,7 +99,14 @@ namespace PSFExtractor
             SplitPSF.DeltaFileList.List = new ArrayList();
             try
             {
-                SplitPSF.GenerateFileList.Generate(XMLFileName);
+                if (PSFXVersion == 1)
+                {
+                    SplitPSF.GenerateFileListV1.Generate(XMLFileName);
+                }
+                else
+                {
+                    SplitPSF.GenerateFileList.Generate(XMLFileName);
+                }
             }
             catch(Exception e)
             {
@@ -94,7 +115,14 @@ namespace PSFExtractor
             }
             try
             {
-                SplitPSF.SplitOutput.WriteOutput(PSFFileName, DirectoryName);
+                if (PSFXVersion == 1)
+                {
+                    SplitPSF.SplitOutputV1.WriteOutput(PSFFileName, DirectoryName);
+                }
+                else
+                {
+                    SplitPSF.SplitOutput.WriteOutput(PSFFileName, DirectoryName);
+                }
             }
             catch(Exception e)
             {
@@ -110,14 +138,20 @@ namespace PSFExtractor
         {
             //                |---------------------------------------80---------------------------------------|
             Console.WriteLine("Usage: PSFExtractor.exe <CAB file>\n" +
-                              "       PSFExtractor.exe -m <PSF file> <XML file> <destination>\n\n" +
+                              "       PSFExtractor.exe -m -v1 <PSF file> <PSM file> <destination>\n" +
+                              "       PSFExtractor.exe -m -v2 <PSF file> <XML file> <destination>\n\n" +
                               "    Auto mode      Auto detect CAB file and PSF file. Works only for Windows 10+.\n" +
                               "    <CAB file>     Path to CAB file. Use only in auto mode. Need corresponding\n" +
                               "                   PSF file with the same name in the same location.\n" +
                               "    -m             Specify PSF file and its descriptive XML file manually. Works\n" +
                               "                   for any update.\n" +
+                              "    -v1            Specify PSFX version 1. Use only in manual mode. For Windows\n" +
+                              "                   XP and Server 2003.\n" +
+                              "    -v2            Specify PSFX version 2. Use only in manual mode. For Windows\n" +
+                              "                   Vista and above.\n" +
                               "    <PSF file>     Path to PSF file. Use only in manual mode.\n" +
-                              "    <XML file>     Path to XML file. Use only in manual mode.\n" +
+                              "    <PSM file>     Path to PSM file. Use only in manual mode. For PSFXv1.\n" +
+                              "    <XML file>     Path to XML file. Use only in manual mode. For PSFXv2.\n" +
                               "    <destination>  Path to output folder. If the folder does not exist, it will\n" +
                               "                   be created. Use only in manual mode.\n");
         }
@@ -142,7 +176,7 @@ namespace PSFExtractor
                     Console.WriteLine("Error: expand failed.");
                     break;
                 case 5:
-                    Console.WriteLine("Error: invalid XML file.");
+                    Console.WriteLine("Error: invalid PSM/XML file.");
                     break;
                 case 6:
                     Console.WriteLine("Error: failed to write output file.");
