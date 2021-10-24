@@ -10,7 +10,7 @@ namespace PSFExtractor.PreProcessing
         {
             if(File.Exists(DirectoryName + Path.DirectorySeparatorChar + "express.psf.cix.xml"))
             {
-                Console.WriteLine("CAB file is already expanded.");
+                Console.WriteLine("Warning: CAB file is already expanded.");
                 return;
             }
             System.Diagnostics.Process ExpandProcess = new System.Diagnostics.Process();
@@ -18,14 +18,14 @@ namespace PSFExtractor.PreProcessing
             ExpandProcess.StartInfo.CreateNoWindow = true;
             ExpandProcess.StartInfo.FileName = "expand.exe";
             ExpandProcess.StartInfo.Arguments = '\"' + CABFileName + '\"' + " -F:* " + '\"' + DirectoryName + '\"';
-            Console.Write("Expanding CAB... ");
+            Console.Write("Expanding CAB...");
             ExpandProcess.Start();
             ExpandProcess.WaitForExit();
             if (ExpandProcess.ExitCode != 0)
             {
                 throw new IOException();
             }
-            Console.WriteLine("OK");
+            Console.WriteLine(" OK");
         }
     }
 }

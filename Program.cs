@@ -8,47 +8,84 @@ namespace PSFExtractor
     {
         static int Main(string[] args)
         {
-            Console.WriteLine("PSFExtractor v1.07a (Sep 16 2021) by th1r5bvn23 & abbodi1406\nVisit https://www.betaworld.cn/\n");
-            if (args.Length != 1)
+            Console.WriteLine("PSFExtractor v1.08 (Oct 24 2021) by th1r5bvn23 & abbodi1406\nVisit https://www.betaworld.cn/\n");
+            string CABFileName;
+            string PSFFileName;
+            string XMLFileName;
+            string DirectoryName;
+            switch (args.Length)
             {
-                PrintHelp();
-                return 0;
-            }
-            string CABFileName = args[0];
-            if (!File.Exists(CABFileName))
-            {
-                PrintError(1);
-                return 1;
-            }
-            string DirectoryName = CABFileName.Substring(0, CABFileName.LastIndexOf('.'));
-            try
-            {
-                Directory.CreateDirectory(DirectoryName);
-            }
-            catch(Exception e)
-            {
-                PrintError(2);
-                return 1;
-            }
-            string PSFFileName = DirectoryName + ".psf";
-            if (!File.Exists(PSFFileName))
-            {
-                PrintError(3);
-                return 1;
-            }
-            try
-            {
-                PreProcessing.PreProcess.Process(CABFileName, DirectoryName);
-            }
-            catch(Exception e)
-            {
-                PrintError(4);
-                return 1;
+                case 1:
+                    CABFileName = args[0];
+                    if (!File.Exists(CABFileName))
+                    {
+                        PrintError(1);
+                        return 1;
+                    }
+                    DirectoryName = CABFileName.Substring(0, CABFileName.LastIndexOf('.'));
+                    PSFFileName = DirectoryName + ".psf";
+                    if (!File.Exists(PSFFileName))
+                    {
+                        PrintError(3);
+                        return 1;
+                    }
+                    try
+                    {
+                        Directory.CreateDirectory(DirectoryName);
+                    }
+                    catch (Exception e)
+                    {
+                        PrintError(2);
+                        return 1;
+                    }
+                    try
+                    {
+                        PreProcessing.PreProcess.Process(CABFileName, DirectoryName);
+                    }
+                    catch (Exception e)
+                    {
+                        PrintError(4);
+                        return 1;
+                    }
+                    XMLFileName = DirectoryName + Path.DirectorySeparatorChar + "express.psf.cix.xml";
+                    break;
+                case 4:
+                    if (!args[0].Equals("-m"))
+                    {
+                        PrintHelp();
+                        return 1;
+                    }
+                    PSFFileName = args[1];
+                    if (!File.Exists(PSFFileName))
+                    {
+                        PrintError(1);
+                        return 1;
+                    }
+                    XMLFileName = args[2];
+                    if (!File.Exists(XMLFileName))
+                    {
+                        PrintError(1);
+                        return 1;
+                    }
+                    DirectoryName = args[3];
+                    try
+                    {
+                        Directory.CreateDirectory(DirectoryName);
+                    }
+                    catch (Exception e)
+                    {
+                        PrintError(2);
+                        return 1;
+                    }
+                    break;
+                default:
+                    PrintHelp();
+                    return 0;
             }
             SplitPSF.DeltaFileList.List = new ArrayList();
             try
             {
-                SplitPSF.GenerateFileList.Generate(PSFFileName, DirectoryName);
+                SplitPSF.GenerateFileList.Generate(XMLFileName);
             }
             catch(Exception e)
             {
@@ -72,21 +109,17 @@ namespace PSFExtractor
         static void PrintHelp()
         {
             //                |---------------------------------------80---------------------------------------|
-            // Won't implement these features until v1.1
-            /*
             Console.WriteLine("Usage: PSFExtractor.exe <CAB file>\n" +
-                              "       PSFExtractor.exe --manual <PSF file> <XML file> [--prefer <type>]\n\n" +
+                              "       PSFExtractor.exe -m <PSF file> <XML file> <destination>\n\n" +
                               "    Auto mode      Auto detect CAB file and PSF file. Works only for Windows 10+.\n" +
-                              "    Manual mode    Specify PSF file and its descriptive XML file manually. Works\n" +
-                              "                   for any update.\n" +
                               "    <CAB file>     Path to CAB file. Use only in auto mode. Need corresponding\n" +
                               "                   PSF file with the same name in the same location.\n" +
+                              "    -m             Specify PSF file and its descriptive XML file manually. Works\n" +
+                              "                   for any update.\n" +
                               "    <PSF file>     Path to PSF file. Use only in manual mode.\n" +
                               "    <XML file>     Path to XML file. Use only in manual mode.\n" +
-                              "    <type>         Specify the preferred type when multiple source is available.\n" +
-                              "                   Default value is RAW.\n");
-            */
-            Console.WriteLine("Usage: PSFExtractor.exe <CAB file>\n");
+                              "    <destination>  Path to output folder. If the folder does not exist, it will\n" +
+                              "                   be created. Use only in manual mode.\n");
         }
 
         static void PrintError(int ErrorCode)
@@ -97,7 +130,7 @@ namespace PSFExtractor
                     Console.WriteLine("Finished!");
                     break;
                 case 1:
-                    Console.WriteLine("Error: no CAB file.");
+                    Console.WriteLine("Error: file does not exist.");
                     break;
                 case 2:
                     Console.WriteLine("Error: failed to create directory.");
@@ -109,7 +142,7 @@ namespace PSFExtractor
                     Console.WriteLine("Error: expand failed.");
                     break;
                 case 5:
-                    Console.WriteLine("Error: invalid CAB file.");
+                    Console.WriteLine("Error: invalid XML file.");
                     break;
                 case 6:
                     Console.WriteLine("Error: failed to write output file.");

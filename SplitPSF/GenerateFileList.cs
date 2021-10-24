@@ -5,11 +5,11 @@ namespace PSFExtractor.SplitPSF
 {
     class GenerateFileList
     {
-        public static void Generate(string PSFFileName, string DirectoryName)
+        public static void Generate(string XMLFileName)
         {
-            Console.Write("Reading file info... ");
+            Console.Write("Reading file info...");
             XmlDocument doc = new XmlDocument();
-            doc.Load(DirectoryName + @"\express.psf.cix.xml");
+            doc.Load(XMLFileName);
             XmlNode root = doc.FirstChild.NextSibling;
             XmlNode child = root.FirstChild;
             while (!child.LocalName.Equals("Files"))
@@ -38,7 +38,7 @@ namespace PSFExtractor.SplitPSF
                 int sourceLength = int.Parse(sourceElement.GetAttribute("length"));
                 DeltaFileList.List.Add(new DeltaFile(name, time, sourceType, sourceOffset, sourceLength));
             }
-            Console.WriteLine("OK");
+            Console.WriteLine(" OK");
         }
     }
 }

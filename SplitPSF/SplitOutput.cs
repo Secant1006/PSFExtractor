@@ -9,7 +9,7 @@ namespace PSFExtractor.SplitPSF
 
         public static void WriteOutput(string PSFFile, string DirectoryName)
         {
-            Console.Write("Writing: " + DeltaFileList.List.Count + " files... ");
+            Console.Write("Writing: " + DeltaFileList.List.Count + " files...");
             FileStream PSFFileStream = File.OpenRead(PSFFile);
             string TempDirectory = Path.GetTempPath() + "PSFExtractor";
             if (!Directory.Exists(TempDirectory))
@@ -70,7 +70,7 @@ namespace PSFExtractor.SplitPSF
             {
                 Directory.Delete(TempDirectory, true);
             }
-            Console.WriteLine("OK");
+            Console.WriteLine(" OK");
         }
     }
 }
