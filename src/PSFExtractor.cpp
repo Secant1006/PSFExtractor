@@ -21,7 +21,7 @@ const char PathSeparator = '\\';
 const char WrongPathSeparator = '/';
 
 // Strings
-const char* ProgramTitle = "PSFExtractor v3.02 (Aug 23 2022) by th1r5bvn23\nhttps://www.betaworld.cn/\n\n";
+const char* ProgramTitle = "PSFExtractor v3.03 (Aug 23 2022) by th1r5bvn23\nhttps://www.betaworld.cn/\n\n";
 const char* HelpInformation = "Usage:\n    PSFExtractor.exe <CAB file>\n    PSFExtractor.exe -v[N] <PSF file> <description file> <destination>\n\n    <CAB file>          Auto detect CAB file and corresponding PSF file which\n                        are in the same location with the same name.\n    -v[N]               Specify PSFX version. N = 1 | 2. PSFX v1 is for Windows\n                        2000 to Server 2003, while PSFX v2 is for Windows Vista\n                        and above.\n    <PSF file>          Path to PSF payload file.\n    <description file>  Path to description file. For PSFX v1, the description\n                        file has an extension \".psm\". For PSFX v2, a standard\n                        XML document is used.\n    <destination>       Path to output folder. If the folder doesn\'t exist, it\n                        will be created automatically.\n";
 
 // Global settings
@@ -248,6 +248,7 @@ bool ExtractCABFile(char* CABFilePart, char* CABPathPart) {
 		return false;
 	}
 	TotalFiles = CabinetInfo->cFiles;
+	cout << TotalFiles << " files..." << endl;
 	FDIFree(CabinetInfo);
 	CloseHandle(hf);
 
@@ -401,7 +402,6 @@ bool WriteOutput() {
 	HANDLE output = NULL;
 	void* buffer = NULL;
 	DWORD temp;
-	TotalFiles = DeltaFileList.size();
 	CurrentFiles = 0;
 	CreateProgressBar();
 	for (vector<DeltaFile>::iterator item = DeltaFileList.begin(); item != DeltaFileList.end(); item++) {
@@ -542,7 +542,7 @@ int wmain(int argc, WCHAR* argv[]) {
 		CABFilePartPointer[0] = '\0';
 		CABPathPart = strdupWtoA(CP_ACP, CABFileFullName);
 		FDIFree(CABFileFullName);
-		cout << "Expanding CAB..." << endl;
+		cout << "Extracting: ";
 		if (!ExtractCABFile(CABFilePart, CABPathPart)) {
 			cout << "\nError: Error extracting CAB." << endl;
 			ShowConsoleCursor(true);
@@ -614,7 +614,8 @@ int wmain(int argc, WCHAR* argv[]) {
 	cout << " OK." << endl;
 
 	// Write output
-	cout << "Writing output file..." << endl;
+	TotalFiles = DeltaFileList.size();
+	cout << "Writing: " << TotalFiles << " files..." << endl;
 	if (!WriteOutput()) {
 		cout << "\nError: Error writing output files." << endl;
 		ShowConsoleCursor(true);
