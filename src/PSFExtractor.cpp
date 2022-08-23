@@ -21,7 +21,7 @@ const char PathSeparator = '\\';
 const char WrongPathSeparator = '/';
 
 // Strings
-const char* ProgramTitle = "PSFExtractor v3.03 (Aug 23 2022) by th1r5bvn23\nhttps://www.betaworld.cn/\n\n";
+const char* ProgramTitle = "PSFExtractor v3.04 (Aug 23 2022) by th1r5bvn23\nhttps://www.betaworld.cn/\n\n";
 const char* HelpInformation = "Usage:\n    PSFExtractor.exe <CAB file>\n    PSFExtractor.exe -v[N] <PSF file> <description file> <destination>\n\n    <CAB file>          Auto detect CAB file and corresponding PSF file which\n                        are in the same location with the same name.\n    -v[N]               Specify PSFX version. N = 1 | 2. PSFX v1 is for Windows\n                        2000 to Server 2003, while PSFX v2 is for Windows Vista\n                        and above.\n    <PSF file>          Path to PSF payload file.\n    <description file>  Path to description file. For PSFX v1, the description\n                        file has an extension \".psm\". For PSFX v2, a standard\n                        XML document is used.\n    <destination>       Path to output folder. If the folder doesn\'t exist, it\n                        will be created automatically.\n";
 
 // Global settings
@@ -35,18 +35,10 @@ bool FileExists(const WCHAR* FileName) {
 	return (GetFileAttributesW(FileName) != INVALID_FILE_ATTRIBUTES);
 }
 
-void ShowConsoleCursor(bool showFlag)
-{
-	HANDLE out = GetStdHandle(STD_OUTPUT_HANDLE);
-	CONSOLE_CURSOR_INFO cursorInfo;
-	GetConsoleCursorInfo(out, &cursorInfo);
-	cursorInfo.dwSize = 100;
-	cursorInfo.bVisible = showFlag;
-	SetConsoleCursorInfo(out, &cursorInfo);
-}
+int CurrentPosition;
 
 void CreateProgressBar() {
-	ShowConsoleCursor(false);
+	CurrentPosition = 0;
 	cout << '[';
 	for (int i = 0; i < ProgressBarWidth; i++) {
 		cout << ' ';
@@ -56,26 +48,29 @@ void CreateProgressBar() {
 }
 
 void UpdateProgressBar(float progress) {
-	cout << "\r[";
 	int pos = (int)(progress * (float)ProgressBarWidth);
-	for (int i = 0; i < ProgressBarWidth; i++) {
-		if (i < pos) {
-			cout << '=';
+	if (CurrentPosition != pos) {
+		CurrentPosition = pos;
+		cout << "\r[";
+		for (int i = 0; i < ProgressBarWidth; i++) {
+			if (i < pos) {
+				cout << '=';
+			}
+			else if (i == pos) {
+				cout << '>';
+			}
+			else {
+				cout << ' ';
+			}
 		}
-		else if (i == pos) {
-			cout << '>';
-		}
-		else {
-			cout << ' ';
-		}
+		cout << "] " << (int)(progress * 100.0) << '%';
+		cout.flush();
 	}
-	cout << "] " << (int)(progress * 100.0) << '%';
-	cout.flush();
 }
 
 void FinishProgressBar() {
+	CurrentPosition = 0;
 	cout << endl;
-	ShowConsoleCursor(true);
 }
 
 // Cabinet API functions
@@ -545,7 +540,6 @@ int wmain(int argc, WCHAR* argv[]) {
 		cout << "Extracting: ";
 		if (!ExtractCABFile(CABFilePart, CABPathPart)) {
 			cout << "\nError: Error extracting CAB." << endl;
-			ShowConsoleCursor(true);
 			return 1;
 		}
 
@@ -618,7 +612,6 @@ int wmain(int argc, WCHAR* argv[]) {
 	cout << "Writing: " << TotalFiles << " files..." << endl;
 	if (!WriteOutput()) {
 		cout << "\nError: Error writing output files." << endl;
-		ShowConsoleCursor(true);
 		return 1;
 	}
 
