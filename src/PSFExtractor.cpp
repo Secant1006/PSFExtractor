@@ -5,7 +5,6 @@
 #include <windows.h>
 #include <sys/stat.h>
 #include <stdlib.h>
-#include <inttypes.h>
 #include <io.h>
 #include <fcntl.h>
 #include <fdi.h>
@@ -21,7 +20,7 @@ const char PathSeparator = '\\';
 const char WrongPathSeparator = '/';
 
 // Strings
-const char* ProgramTitle = "PSFExtractor v3.04 (Aug 23 2022) by th1r5bvn23\nhttps://www.betaworld.cn/\n\n";
+const char* ProgramTitle = "PSFExtractor v3.05 (Sep 1 2022) by th1r5bvn23\nhttps://www.betaworld.cn/\n\n";
 const char* HelpInformation = "Usage:\n    PSFExtractor.exe <CAB file>\n    PSFExtractor.exe -v[N] <PSF file> <description file> <destination>\n\n    <CAB file>          Auto detect CAB file and corresponding PSF file which\n                        are in the same location with the same name.\n    -v[N]               Specify PSFX version. N = 1 | 2. PSFX v1 is for Windows\n                        2000 to Server 2003, while PSFX v2 is for Windows Vista\n                        and above.\n    <PSF file>          Path to PSF payload file.\n    <description file>  Path to description file. For PSFX v1, the description\n                        file has an extension \".psm\". For PSFX v2, a standard\n                        XML document is used.\n    <destination>       Path to output folder. If the folder doesn\'t exist, it\n                        will be created automatically.\n";
 
 // Global settings
@@ -35,7 +34,9 @@ bool FileExists(const WCHAR* FileName) {
 	return (GetFileAttributesW(FileName) != INVALID_FILE_ATTRIBUTES);
 }
 
-int CurrentPosition;
+int CurrentPosition, CurrentProgress;
+HANDLE hConsoleOutput = GetStdHandle(STD_OUTPUT_HANDLE);
+CONSOLE_SCREEN_BUFFER_INFO ConsoleScreenBufferInfo = { 0 };
 
 void CreateProgressBar() {
 	CurrentPosition = 0;
@@ -45,26 +46,38 @@ void CreateProgressBar() {
 	}
 	cout << "] 0%";
 	cout.flush();
+	GetConsoleScreenBufferInfo(hConsoleOutput, &ConsoleScreenBufferInfo);
 }
 
 void UpdateProgressBar(float progress) {
+	COORD dwCursorPosition = ConsoleScreenBufferInfo.dwCursorPosition;
+	bool FlushFlag = false;
 	int pos = (int)(progress * (float)ProgressBarWidth);
 	if (CurrentPosition != pos) {
-		CurrentPosition = pos;
-		cout << "\r[";
-		for (int i = 0; i < ProgressBarWidth; i++) {
+		dwCursorPosition.X = CurrentPosition + 1;
+		SetConsoleCursorPosition(hConsoleOutput, dwCursorPosition);
+		for (int i = CurrentPosition; i < ProgressBarWidth; i++) {
 			if (i < pos) {
 				cout << '=';
 			}
 			else if (i == pos) {
 				cout << '>';
-			}
-			else {
-				cout << ' ';
+				break;
 			}
 		}
-		cout << "] " << (int)(progress * 100.0) << '%';
+		CurrentPosition = pos;
+		FlushFlag = true;
+	}
+	if (CurrentProgress != (int)(progress * 100)) {
+		dwCursorPosition.X = ProgressBarWidth + 3;
+		SetConsoleCursorPosition(hConsoleOutput, dwCursorPosition);
+		CurrentProgress = (int)(progress * 100);
+		cout << CurrentProgress << '%';
+		FlushFlag = true;
+	}
+	if (FlushFlag) {
 		cout.flush();
+		FlushFlag = false;
 	}
 }
 
@@ -326,16 +339,20 @@ bool ParseDescriptionFileV1() {
 			else {
 				return false;
 			}
-			unsigned long long offset = strtoull(p, &q, 16);
+			unsigned long long offset = _strtoui64(p, &q, 16);
 			q++;
-			int length = strtoimax(q, &p, 16);
+			unsigned int length = strtoul(q, &p, 16);
 			ULARGE_INTEGER time_ularge = { 0 };
 			FILETIME time = { time_ularge.LowPart, time_ularge.HighPart };
 			ULARGE_INTEGER offset_ularge = { 0 };
 			offset_ularge.QuadPart = offset;
 			DeltaFile file;
 			if (FileName) {
-				file = { FileName, time, type, offset_ularge, (DWORD)length };
+				file.name = FileName;
+				file.time = time;
+				file.type = type;
+				file.offset = offset_ularge;
+				file.length = (DWORD)length;
 			}
 			else {
 				return false;
@@ -380,7 +397,8 @@ bool ParseDescriptionFileV2() {
 		ULARGE_INTEGER FileOffset = { 0 };
 		FileOffset.QuadPart = SourceNode.attribute("offset").as_ullong();
 		unsigned long FileLength = SourceNode.attribute("length").as_uint();
-		DeltaFileList.push_back({ FileName, FileTime, FileType, FileOffset, FileLength });
+		DeltaFile file = { FileName, FileTime, FileType, FileOffset, FileLength };
+		DeltaFileList.push_back(file);
 	}
 	return true;
 }
@@ -454,7 +472,7 @@ bool WriteOutput() {
 	FinishProgressBar();
 	return true;
 }
- 
+
 // Main entry
 int wmain(int argc, WCHAR* argv[]) {
 	cout << ProgramTitle;
@@ -609,10 +627,12 @@ int wmain(int argc, WCHAR* argv[]) {
 
 	// Write output
 	TotalFiles = DeltaFileList.size();
-	cout << "Writing: " << TotalFiles << " files..." << endl;
-	if (!WriteOutput()) {
-		cout << "\nError: Error writing output files." << endl;
-		return 1;
+	if (TotalFiles) {
+		cout << "Writing: " << TotalFiles << " files..." << endl;
+		if (!WriteOutput()) {
+			cout << "\nError: Error writing output files." << endl;
+			return 1;
+		}
 	}
 
 	// Cleanup and exit
