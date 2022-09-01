@@ -8,7 +8,6 @@
 #include <io.h>
 #include <fcntl.h>
 #include <fdi.h>
-#include <msdelta.h>
 #include "../libs/pugixml/src/pugixml.hpp"
 
 #define MAX_PATH_W 32767
@@ -20,7 +19,7 @@ const char PathSeparator = '\\';
 const char WrongPathSeparator = '/';
 
 // Strings
-const char* ProgramTitle = "PSFExtractor v3.05 (Sep 1 2022) by th1r5bvn23\nhttps://www.betaworld.cn/\n\n";
+const char* ProgramTitle = "PSFExtractor v3.06 (Sep 1 2022) by th1r5bvn23\nhttps://www.betaworld.cn/\n\n";
 const char* HelpInformation = "Usage:\n    PSFExtractor.exe <CAB file>\n    PSFExtractor.exe -v[N] <PSF file> <description file> <destination>\n\n    <CAB file>          Auto detect CAB file and corresponding PSF file which\n                        are in the same location with the same name.\n    -v[N]               Specify PSFX version. N = 1 | 2. PSFX v1 is for Windows\n                        2000 to Server 2003, while PSFX v2 is for Windows Vista\n                        and above.\n    <PSF file>          Path to PSF payload file.\n    <description file>  Path to description file. For PSFX v1, the description\n                        file has an extension \".psm\". For PSFX v2, a standard\n                        XML document is used.\n    <destination>       Path to output folder. If the folder doesn\'t exist, it\n                        will be created automatically.\n";
 
 // Global settings
@@ -28,6 +27,8 @@ int PSFXVersion;
 char* DescriptionFileName;
 char* PayloadFileName;
 char* TargetDirectoryName;
+bool MSPatchALoadFlag = false;
+bool MSDeltaLoadFlag = false;
 
 // Utility functions
 bool FileExists(const WCHAR* FileName) {
@@ -330,6 +331,7 @@ bool ParseDescriptionFileV1() {
 			char* p, * q;
 			if (p = strstr(LineBuffer, "p0=")) {
 				type = PA19;
+				MSPatchALoadFlag = true;
 				p += 3;
 			}
 			else if (p = strstr(LineBuffer, "full=")) {
@@ -390,9 +392,11 @@ bool ParseDescriptionFileV2() {
 		}
 		else if (!_strcmpi(type, "PA19")) {
 			FileType = PA19;
+			MSPatchALoadFlag = true;
 		}
 		else if (!_strcmpi(type, "PA30")) {
 			FileType = PA30;
+			MSDeltaLoadFlag = true;
 		}
 		ULARGE_INTEGER FileOffset = { 0 };
 		FileOffset.QuadPart = SourceNode.attribute("offset").as_ullong();
@@ -402,6 +406,27 @@ bool ParseDescriptionFileV2() {
 	}
 	return true;
 }
+
+typedef BOOL(CALLBACK PATCH_PROGRESS_CALLBACK)(PVOID CallbackContext, ULONG CurrentPosition, ULONG MaximumPosition);
+typedef PATCH_PROGRESS_CALLBACK* PPATCH_PROGRESS_CALLBACK;
+typedef BOOL(WINAPI *ApplyPatchToFileByBuffersFunc)(PBYTE PatchFileMapped, ULONG PatchFileSize, PBYTE OldFileMapped, ULONG OldFileSize, PBYTE* NewFileBuffer, ULONG NewFileBufferSize, ULONG* NewFileActualSize, FILETIME* NewFileTime, ULONG ApplyOptionFlags, PPATCH_PROGRESS_CALLBACK ProgressCallback, PVOID CallbackContext);
+
+typedef struct _DELTA_INPUT {
+	union {
+		LPCVOID lpcStart;
+		LPVOID lpStart;
+	};
+	SIZE_T uSize;
+	BOOL Editable;
+} DELTA_INPUT;
+typedef struct _DELTA_OUTPUT {
+	LPVOID lpStart;
+	SIZE_T uSize;
+} DELTA_OUTPUT;
+typedef DELTA_OUTPUT* LPDELTA_OUTPUT;
+typedef __int64 DELTA_FLAG_TYPE;
+typedef BOOL(WINAPI *ApplyDeltaBFunc)(DELTA_FLAG_TYPE ApplyFlags, DELTA_INPUT Source, DELTA_INPUT Delta, LPDELTA_OUTPUT lpTarget);
+typedef BOOL(WINAPI *DeltaFreeFunc)(LPVOID lpMemory);
 
 // Write output
 bool WriteOutput() {
@@ -415,6 +440,35 @@ bool WriteOutput() {
 	HANDLE output = NULL;
 	void* buffer = NULL;
 	DWORD temp;
+	HMODULE MSPatchA = NULL;
+	ApplyPatchToFileByBuffersFunc ApplyPatchToFileByBuffers = NULL;
+	if (MSPatchALoadFlag) {
+		MSPatchA = LoadLibraryW(L"mspatcha.dll");
+		if (!MSPatchA) {
+			return false;
+		}
+		ApplyPatchToFileByBuffers = (ApplyPatchToFileByBuffersFunc)GetProcAddress(MSPatchA, "ApplyPatchToFileByBuffers");
+		if (!ApplyPatchToFileByBuffers) {
+			return false;
+		}
+	}
+	HMODULE MSDelta = NULL;
+	ApplyDeltaBFunc ApplyDeltaB = NULL;
+	DeltaFreeFunc DeltaFree = NULL;
+	if (MSDeltaLoadFlag) {
+		MSDelta = LoadLibraryW(L"msdelta.dll");
+		if (!MSDelta) {
+			return false;
+		}
+		ApplyDeltaB = (ApplyDeltaBFunc)GetProcAddress(MSDelta, "ApplyDeltaB");
+		if (!ApplyDeltaB) {
+			return false;
+		}
+		DeltaFree = (DeltaFreeFunc)GetProcAddress(MSDelta, "DeltaFree");
+		if (!DeltaFree) {
+			return false;
+		}
+	}
 	CurrentFiles = 0;
 	CreateProgressBar();
 	for (vector<DeltaFile>::iterator item = DeltaFileList.begin(); item != DeltaFileList.end(); item++) {
@@ -437,33 +491,41 @@ bool WriteOutput() {
 		wcscat_s(TargetFilePath, (lstrlenW(TargetDirectoryNameW) + lstrlenW(file) + 1), file);
 		CreateDirectoryRecursive(TargetFilePath);
 		output = CreateFileW(TargetFilePath, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
-		if (output == INVALID_HANDLE_VALUE) {
+		if (output == INVALID_HANDLE_VALUE || output == NULL) {
 			return false;
 		}
 		FDIFree(TargetDirectoryNameW);
 		FDIFree(TargetFilePath);
-		if (item->type == RAW) {
+		if (item->type == PA19) {
+			PBYTE PA19DeltaOutput = NULL;
+			ULONG PA19TargetSize;
+			if (!ApplyPatchToFileByBuffers((PBYTE)buffer, item->length, NULL, 0, &PA19DeltaOutput, 0, &PA19TargetSize, &item->time, NULL, NULL, NULL)) {
+				return false;
+			}
+			if (!WriteFile(output, PA19DeltaOutput, PA19TargetSize, &temp, NULL)) {
+				return false;
+			}
+			VirtualFree(PA19DeltaOutput, 0, MEM_RELEASE);
+		}
+		else if (item->type == PA30) {
+			DELTA_INPUT PA30DeltaInput = { buffer, item->length, false };
+			DELTA_INPUT PA30NullDeltaInput = { NULL, 0, false };
+			DELTA_OUTPUT PA30DeltaOutput;
+			if (!ApplyDeltaB(0, PA30NullDeltaInput, PA30DeltaInput, &PA30DeltaOutput)) {
+				return false;
+			}
+			if (!WriteFile(output, PA30DeltaOutput.lpStart, PA30DeltaOutput.uSize, &temp, NULL)) {
+				return false;
+			}
+			DeltaFree(PA30DeltaOutput.lpStart);
+		}
+		else {
 			if (!WriteFile(output, buffer, item->length, &temp, NULL)) {
 				return false;
 			}
 		}
-		else {
-			DELTA_INPUT DeltaInput = { buffer, item->length, false };
-			DELTA_INPUT NullDeltaInput = { NULL, 0, false };
-			DELTA_OUTPUT* DeltaOutput = (DELTA_OUTPUT*)FDIAlloc(sizeof(DELTA_OUTPUT));
-			if (!ApplyDeltaB(DELTA_APPLY_FLAG_ALLOW_PA19, NullDeltaInput, DeltaInput, DeltaOutput)) {
-				return false;
-			}
-			if (!WriteFile(output, DeltaOutput->lpStart, DeltaOutput->uSize, &temp, NULL)) {
-				return false;
-			}
-			DeltaFree(DeltaOutput->lpStart);
-			FDIFree(DeltaOutput);
-		}
 		FDIFree(buffer);
-		if (!SetFileTime(output, NULL, NULL, &(item->time))) {
-			return false;
-		}
+		SetFileTime(output, NULL, NULL, &item->time);
 		CloseHandle(output);
 		CurrentFiles++;
 		UpdateProgressBar((float)CurrentFiles / (float)TotalFiles);
