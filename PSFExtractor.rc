@@ -99,7 +99,7 @@ END
 #ifdef _M_AMD64
 IDR_DLL1 RCDATA "libs/PatchEngine/x64/mspatcha.dll"
 IDR_DLL2 RCDATA "libs/PatchEngine/x64/msdelta.dll"
-#else if defined _M_IX86
+#elif defined _M_IX86
 IDR_DLL1 RCDATA "libs/PatchEngine/x86/mspatcha.dll"
 IDR_DLL2 RCDATA "libs/PatchEngine/x86/msdelta.dll"
 #endif
