@@ -13,3 +13,6 @@
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
+
+#define IDR_DLL1 1
+#define IDR_DLL2 2

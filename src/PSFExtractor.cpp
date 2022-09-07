@@ -8,6 +8,7 @@
 #include <io.h>
 #include <fcntl.h>
 #include <fdi.h>
+#include "../resource.h"
 #include "../libs/pugixml/src/pugixml.hpp"
 
 #define MAX_PATH_W 32767
@@ -19,7 +20,7 @@ const char PathSeparator = '\\';
 const char WrongPathSeparator = '/';
 
 // Strings
-const char* ProgramTitle = "PSFExtractor v3.06 (Sep 1 2022) by th1r5bvn23\nhttps://www.betaworld.cn/\n\n";
+const char* ProgramTitle = "PSFExtractor v3.07 (Sep 7 2022) by th1r5bvn23\nhttps://www.betaworld.cn/\n\n";
 const char* HelpInformation = "Usage:\n    PSFExtractor.exe <CAB file>\n    PSFExtractor.exe -v[N] <PSF file> <description file> <destination>\n\n    <CAB file>          Auto detect CAB file and corresponding PSF file which\n                        are in the same location with the same name.\n    -v[N]               Specify PSFX version. N = 1 | 2. PSFX v1 is for Windows\n                        2000 to Server 2003, while PSFX v2 is for Windows Vista\n                        and above.\n    <PSF file>          Path to PSF payload file.\n    <description file>  Path to description file. For PSFX v1, the description\n                        file has an extension \".psm\". For PSFX v2, a standard\n                        XML document is used.\n    <destination>       Path to output folder. If the folder doesn\'t exist, it\n                        will be created automatically.\n";
 
 // Global settings
@@ -428,6 +429,102 @@ typedef __int64 DELTA_FLAG_TYPE;
 typedef BOOL(WINAPI *ApplyDeltaBFunc)(DELTA_FLAG_TYPE ApplyFlags, DELTA_INPUT Source, DELTA_INPUT Delta, LPDELTA_OUTPUT lpTarget);
 typedef BOOL(WINAPI *DeltaFreeFunc)(LPVOID lpMemory);
 
+bool LoadMSPatchA(ApplyPatchToFileByBuffersFunc* ApplyPatchToFileByBuffersAddr) {
+	HMODULE MSPatchA = NULL;
+	MSPatchA = LoadLibraryW(L"mspatcha.dll");
+	if (MSPatchA) {
+		*ApplyPatchToFileByBuffersAddr = (ApplyPatchToFileByBuffersFunc)GetProcAddress(MSPatchA, "ApplyPatchToFileByBuffers");
+		if (*ApplyPatchToFileByBuffersAddr) {
+			return true;
+		}
+	}
+	HRSRC ResourceInformation = NULL;
+	ResourceInformation = FindResourceW(NULL, MAKEINTRESOURCE(IDR_DLL1), RT_RCDATA);
+	if (!ResourceInformation) {
+		return false;
+	}
+	LPVOID ResourcePointer = NULL;
+	ResourcePointer = LockResource(LoadResource(NULL, ResourceInformation));
+	if (!ResourcePointer) {
+		return false;
+	}
+	WCHAR MSPatchA_Temp[MAX_PATH + 2];
+	if (!GetTempPathW(MAX_PATH + 2, MSPatchA_Temp)) {
+		return false;
+	}
+	lstrcatW(MSPatchA_Temp, L"mspatcha.dll");
+	HANDLE hf = CreateFileW(MSPatchA_Temp, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hf == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+	DWORD temp;
+	if (!WriteFile(hf, ResourcePointer, SizeofResource(NULL, ResourceInformation), &temp, NULL)) {
+		return false;
+	}
+	else {
+		if (!CloseHandle(hf)) {
+			return false;
+		}
+	}
+	MSPatchA = LoadLibraryW(MSPatchA_Temp);
+	if (MSPatchA) {
+		*ApplyPatchToFileByBuffersAddr = (ApplyPatchToFileByBuffersFunc)GetProcAddress(MSPatchA, "ApplyPatchToFileByBuffers");
+		if (*ApplyPatchToFileByBuffersAddr) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool LoadMSDelta(ApplyDeltaBFunc* ApplyDeltaBAddr, DeltaFreeFunc* DeltaFreeAddr) {
+	HMODULE MSDelta = NULL;
+	MSDelta = LoadLibraryW(L"msdelta.dll");
+	if (MSDelta) {
+		*ApplyDeltaBAddr = (ApplyDeltaBFunc)GetProcAddress(MSDelta, "ApplyDeltaB");
+		*DeltaFreeAddr = (DeltaFreeFunc)GetProcAddress(MSDelta, "DeltaFree");
+		if (*ApplyDeltaBAddr && *DeltaFreeAddr) {
+			return true;
+		}
+	}
+	HRSRC ResourceInformation = NULL;
+	ResourceInformation = FindResourceW(NULL, MAKEINTRESOURCE(IDR_DLL2), RT_RCDATA);
+	if (!ResourceInformation) {
+		return false;
+	}
+	LPVOID ResourcePointer = NULL;
+	ResourcePointer = LockResource(LoadResource(NULL, ResourceInformation));
+	if (!ResourcePointer) {
+		return false;
+	}
+	WCHAR MSDelta_Temp[MAX_PATH + 2];
+	if (!GetTempPathW(MAX_PATH + 2, MSDelta_Temp)) {
+		return false;
+	}
+	lstrcatW(MSDelta_Temp, L"msdelta.dll");
+	HANDLE hf = CreateFileW(MSDelta_Temp, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+	if (hf == INVALID_HANDLE_VALUE) {
+		return false;
+	}
+	DWORD temp;
+	if (!WriteFile(hf, ResourcePointer, SizeofResource(NULL, ResourceInformation), &temp, NULL)) {
+		return false;
+	}
+	else {
+		if (!CloseHandle(hf)) {
+			return false;
+		}
+	}
+	MSDelta = LoadLibraryW(MSDelta_Temp);
+	if (MSDelta) {
+		*ApplyDeltaBAddr = (ApplyDeltaBFunc)GetProcAddress(MSDelta, "ApplyDeltaB");
+		*DeltaFreeAddr = (DeltaFreeFunc)GetProcAddress(MSDelta, "DeltaFree");
+		if (*ApplyDeltaBAddr && *DeltaFreeAddr) {
+			return true;
+		}
+	}
+	return false;
+}
+
 // Write output
 bool WriteOutput() {
 	WCHAR* PayloadFileNameW = strdupAtoW(CP_ACP, PayloadFileName);
@@ -440,32 +537,16 @@ bool WriteOutput() {
 	HANDLE output = NULL;
 	void* buffer = NULL;
 	DWORD temp;
-	HMODULE MSPatchA = NULL;
 	ApplyPatchToFileByBuffersFunc ApplyPatchToFileByBuffers = NULL;
 	if (MSPatchALoadFlag) {
-		MSPatchA = LoadLibraryW(L"mspatcha.dll");
-		if (!MSPatchA) {
-			return false;
-		}
-		ApplyPatchToFileByBuffers = (ApplyPatchToFileByBuffersFunc)GetProcAddress(MSPatchA, "ApplyPatchToFileByBuffers");
-		if (!ApplyPatchToFileByBuffers) {
+		if (!LoadMSPatchA(&ApplyPatchToFileByBuffers)) {
 			return false;
 		}
 	}
-	HMODULE MSDelta = NULL;
 	ApplyDeltaBFunc ApplyDeltaB = NULL;
 	DeltaFreeFunc DeltaFree = NULL;
 	if (MSDeltaLoadFlag) {
-		MSDelta = LoadLibraryW(L"msdelta.dll");
-		if (!MSDelta) {
-			return false;
-		}
-		ApplyDeltaB = (ApplyDeltaBFunc)GetProcAddress(MSDelta, "ApplyDeltaB");
-		if (!ApplyDeltaB) {
-			return false;
-		}
-		DeltaFree = (DeltaFreeFunc)GetProcAddress(MSDelta, "DeltaFree");
-		if (!DeltaFree) {
+		if (!LoadMSDelta(&ApplyDeltaB, &DeltaFree)) {
 			return false;
 		}
 	}
@@ -538,10 +619,10 @@ bool WriteOutput() {
 // Main entry
 int wmain(int argc, WCHAR* argv[]) {
 	cout << ProgramTitle;
-	const WCHAR PSFXv1[] = { '-', 'v', '1', '\0' };
-	const WCHAR PSFXv2[] = { '-', 'v', '2', '\0' };
-	const WCHAR CABExtension[] = { '.', 'c', 'a', 'b', '\0' };
-	const WCHAR DOSDevicePrefix[] = { '\\', '\\', '?', '\\', '\0' };
+	const WCHAR PSFXv1[] = L"-v1";
+	const WCHAR PSFXv2[] = L"-v2";
+	const WCHAR CABExtension[] = L".cab";
+	const WCHAR DOSDevicePrefix[] = L"\\\\?\\";
 
 	// Filter wrong path separator
 	for (int i = 1; i < argc; i++) {

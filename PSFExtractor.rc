@@ -13,11 +13,9 @@
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// 中文(简体，中国) resources
+// resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_CHS)
-LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
-#pragma code_page(936)
 
 #ifdef APSTUDIO_INVOKED
 /////////////////////////////////////////////////////////////////////////////
@@ -51,8 +49,8 @@ END
 //
 
 VS_VERSION_INFO VERSIONINFO
- FILEVERSION 3,0,6,0
- PRODUCTVERSION 3,0,6,0
+ FILEVERSION 3,0,7,0
+ PRODUCTVERSION 3,0,7,0
  FILEFLAGSMASK 0x3fL
 #ifdef _DEBUG
  FILEFLAGS 0x1L
@@ -69,12 +67,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName", "BetaWorld"
             VALUE "FileDescription", "PSFExtractor"
-            VALUE "FileVersion", "3.0.6.0"
+            VALUE "FileVersion", "3.0.7.0"
             VALUE "InternalName", "PSFExtractor.exe"
             VALUE "LegalCopyright", "Copyright (C) 2012-2022 BetaWorld"
             VALUE "OriginalFilename", "PSFExtractor.exe"
             VALUE "ProductName", "PSFExtractor"
-            VALUE "ProductVersion", "3.0.6.0"
+            VALUE "ProductVersion", "3.0.7.0"
         END
     END
     BLOCK "VarFileInfo"
@@ -83,7 +81,7 @@ BEGIN
     END
 END
 
-#endif    // 中文(简体，中国) resources
+#endif    // resources
 /////////////////////////////////////////////////////////////////////////////
 
 
@@ -98,3 +96,10 @@ END
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
 
+#ifdef _WIN64
+IDR_DLL1 RCDATA "libs/PatchEngine/x64/mspatcha.dll"
+IDR_DLL2 RCDATA "libs/PatchEngine/x64/msdelta.dll"
+#else
+IDR_DLL1 RCDATA "libs/PatchEngine/x86/mspatcha.dll"
+IDR_DLL2 RCDATA "libs/PatchEngine/x86/msdelta.dll"
+#endif
