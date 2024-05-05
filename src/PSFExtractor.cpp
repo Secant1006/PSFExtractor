@@ -443,8 +443,12 @@ bool LoadMSPatchA(ApplyPatchToFileByBuffersFunc* ApplyPatchToFileByBuffersAddr) 
 	if (!ResourceInformation) {
 		return false;
 	}
+	HGLOBAL hResourcesData = LoadResource(NULL, ResourceInformation);
+	if (!hResourcesData) {
+		return false;
+	}
 	LPVOID ResourcePointer = NULL;
-	ResourcePointer = LockResource(LoadResource(NULL, ResourceInformation));
+	ResourcePointer = LockResource(hResourcesData);
 	if (!ResourcePointer) {
 		return false;
 	}
@@ -491,8 +495,12 @@ bool LoadMSDelta(ApplyDeltaBFunc* ApplyDeltaBAddr, DeltaFreeFunc* DeltaFreeAddr)
 	if (!ResourceInformation) {
 		return false;
 	}
+	HGLOBAL hResourcesData = LoadResource(NULL, ResourceInformation);
+	if (!hResourcesData) {
+		return false;
+	}
 	LPVOID ResourcePointer = NULL;
-	ResourcePointer = LockResource(LoadResource(NULL, ResourceInformation));
+	ResourcePointer = LockResource(hResourcesData);
 	if (!ResourcePointer) {
 		return false;
 	}
