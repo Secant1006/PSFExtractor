@@ -700,8 +700,9 @@ int wmain(int argc, WCHAR* argv[]) {
 		WIN32_FIND_DATAA findData;
 		HANDLE hFind = FindFirstFileA((std::string(TargetDirectoryName) + "*.psf.cix.xml").c_str(), &findData);
 		std::string defaultResult = "express.psf.cix.xml";
-		std::string result = "";
+		std::string result = "express.psf.cix.xml";
 		if (hFind != INVALID_HANDLE_VALUE) {
+			result = "";
 			do {
 				std::string fileName = findData.cFileName;
 				if (result.empty()) {
