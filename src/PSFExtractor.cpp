@@ -410,7 +410,7 @@ bool ParseDescriptionFileV2() {
 
 typedef BOOL(CALLBACK PATCH_PROGRESS_CALLBACK)(PVOID CallbackContext, ULONG CurrentPosition, ULONG MaximumPosition);
 typedef PATCH_PROGRESS_CALLBACK* PPATCH_PROGRESS_CALLBACK;
-typedef BOOL(WINAPI *ApplyPatchToFileByBuffersFunc)(PBYTE PatchFileMapped, ULONG PatchFileSize, PBYTE OldFileMapped, ULONG OldFileSize, PBYTE* NewFileBuffer, ULONG NewFileBufferSize, ULONG* NewFileActualSize, FILETIME* NewFileTime, ULONG ApplyOptionFlags, PPATCH_PROGRESS_CALLBACK ProgressCallback, PVOID CallbackContext);
+typedef BOOL(WINAPI* ApplyPatchToFileByBuffersFunc)(PBYTE PatchFileMapped, ULONG PatchFileSize, PBYTE OldFileMapped, ULONG OldFileSize, PBYTE* NewFileBuffer, ULONG NewFileBufferSize, ULONG* NewFileActualSize, FILETIME* NewFileTime, ULONG ApplyOptionFlags, PPATCH_PROGRESS_CALLBACK ProgressCallback, PVOID CallbackContext);
 
 typedef struct _DELTA_INPUT {
 	union {
@@ -426,8 +426,8 @@ typedef struct _DELTA_OUTPUT {
 } DELTA_OUTPUT;
 typedef DELTA_OUTPUT* LPDELTA_OUTPUT;
 typedef __int64 DELTA_FLAG_TYPE;
-typedef BOOL(WINAPI *ApplyDeltaBFunc)(DELTA_FLAG_TYPE ApplyFlags, DELTA_INPUT Source, DELTA_INPUT Delta, LPDELTA_OUTPUT lpTarget);
-typedef BOOL(WINAPI *DeltaFreeFunc)(LPVOID lpMemory);
+typedef BOOL(WINAPI* ApplyDeltaBFunc)(DELTA_FLAG_TYPE ApplyFlags, DELTA_INPUT Source, DELTA_INPUT Delta, LPDELTA_OUTPUT lpTarget);
+typedef BOOL(WINAPI* DeltaFreeFunc)(LPVOID lpMemory);
 
 bool LoadMSPatchA(ApplyPatchToFileByBuffersFunc* ApplyPatchToFileByBuffersAddr) {
 	HMODULE MSPatchA = NULL;
@@ -716,7 +716,7 @@ int wmain(int argc, WCHAR* argv[]) {
 		}
 		DescriptionFileName = (char*)FDIAlloc(sizeof(char) * strlen(TargetDirectoryName) + 2 + result.size());
 		strcpy_s(DescriptionFileName, strlen(TargetDirectoryName) + 2 + result.size(), TargetDirectoryName);
-		strcat_s(DescriptionFileName, strlen(TargetDirectoryName) + 2 + result.size() , result.c_str());
+		strcat_s(DescriptionFileName, strlen(TargetDirectoryName) + 2 + result.size(), result.c_str());
 
 		// Execute CAB extracting function
 		CABFilePart = strdupWtoA(CP_ACP, CABFilePartPointer);
