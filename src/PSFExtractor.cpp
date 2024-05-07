@@ -410,7 +410,7 @@ bool ParseDescriptionFileV2() {
 
 typedef BOOL(CALLBACK PATCH_PROGRESS_CALLBACK)(PVOID CallbackContext, ULONG CurrentPosition, ULONG MaximumPosition);
 typedef PATCH_PROGRESS_CALLBACK* PPATCH_PROGRESS_CALLBACK;
-typedef BOOL(WINAPI *ApplyPatchToFileByBuffersFunc)(PBYTE PatchFileMapped, ULONG PatchFileSize, PBYTE OldFileMapped, ULONG OldFileSize, PBYTE* NewFileBuffer, ULONG NewFileBufferSize, ULONG* NewFileActualSize, FILETIME* NewFileTime, ULONG ApplyOptionFlags, PPATCH_PROGRESS_CALLBACK ProgressCallback, PVOID CallbackContext);
+typedef BOOL(WINAPI* ApplyPatchToFileByBuffersFunc)(PBYTE PatchFileMapped, ULONG PatchFileSize, PBYTE OldFileMapped, ULONG OldFileSize, PBYTE* NewFileBuffer, ULONG NewFileBufferSize, ULONG* NewFileActualSize, FILETIME* NewFileTime, ULONG ApplyOptionFlags, PPATCH_PROGRESS_CALLBACK ProgressCallback, PVOID CallbackContext);
 
 typedef struct _DELTA_INPUT {
 	union {
@@ -426,8 +426,8 @@ typedef struct _DELTA_OUTPUT {
 } DELTA_OUTPUT;
 typedef DELTA_OUTPUT* LPDELTA_OUTPUT;
 typedef __int64 DELTA_FLAG_TYPE;
-typedef BOOL(WINAPI *ApplyDeltaBFunc)(DELTA_FLAG_TYPE ApplyFlags, DELTA_INPUT Source, DELTA_INPUT Delta, LPDELTA_OUTPUT lpTarget);
-typedef BOOL(WINAPI *DeltaFreeFunc)(LPVOID lpMemory);
+typedef BOOL(WINAPI* ApplyDeltaBFunc)(DELTA_FLAG_TYPE ApplyFlags, DELTA_INPUT Source, DELTA_INPUT Delta, LPDELTA_OUTPUT lpTarget);
+typedef BOOL(WINAPI* DeltaFreeFunc)(LPVOID lpMemory);
 
 bool LoadMSPatchA(ApplyPatchToFileByBuffersFunc* ApplyPatchToFileByBuffersAddr) {
 	HMODULE MSPatchA = NULL;
@@ -443,8 +443,12 @@ bool LoadMSPatchA(ApplyPatchToFileByBuffersFunc* ApplyPatchToFileByBuffersAddr) 
 	if (!ResourceInformation) {
 		return false;
 	}
+	HGLOBAL hResourcesData = LoadResource(NULL, ResourceInformation);
+	if (!hResourcesData) {
+		return false;
+	}
 	LPVOID ResourcePointer = NULL;
-	ResourcePointer = LockResource(LoadResource(NULL, ResourceInformation));
+	ResourcePointer = LockResource(hResourcesData);
 	if (!ResourcePointer) {
 		return false;
 	}
@@ -491,8 +495,12 @@ bool LoadMSDelta(ApplyDeltaBFunc* ApplyDeltaBAddr, DeltaFreeFunc* DeltaFreeAddr)
 	if (!ResourceInformation) {
 		return false;
 	}
+	HGLOBAL hResourcesData = LoadResource(NULL, ResourceInformation);
+	if (!hResourcesData) {
+		return false;
+	}
 	LPVOID ResourcePointer = NULL;
-	ResourcePointer = LockResource(LoadResource(NULL, ResourceInformation));
+	ResourcePointer = LockResource(hResourcesData);
 	if (!ResourcePointer) {
 		return false;
 	}
@@ -680,18 +688,35 @@ int wmain(int argc, WCHAR* argv[]) {
 		WCHAR* TargetDirectoryNameBuffer = (WCHAR*)FDIAlloc(sizeof(WCHAR) * MAX_PATH_W);
 		GetFullPathNameW(TargetDirectoryNameW, MAX_PATH_W, TargetDirectoryNameBuffer, (LPWSTR*)NULL);
 		TargetDirectoryName = strdupWtoA(CP_ACP, TargetDirectoryNameBuffer);
+		if (TargetDirectoryName[strlen(TargetDirectoryName) - 1] != PathSeparator) {
+			size_t len = strlen(TargetDirectoryName);
+			TargetDirectoryName[len] = PathSeparator;
+			TargetDirectoryName[len + 1] = '\0';
+		}
 		CreateDirectoryW(TargetDirectoryNameW, NULL);
 		FDIFree(TargetDirectoryNameW);
 
 		// Generate description file name
-		DescriptionFileName = (char*)FDIAlloc(sizeof(char) * strlen(TargetDirectoryName) + 22);
-		strcpy_s(DescriptionFileName, strlen(TargetDirectoryName) + 22, TargetDirectoryName);
-		if (DescriptionFileName[strlen(DescriptionFileName) - 1] != PathSeparator) {
-			size_t len = strlen(DescriptionFileName);
-			DescriptionFileName[len] = PathSeparator;
-			DescriptionFileName[len + 1] = '\0';
+		WIN32_FIND_DATAA findData;
+		HANDLE hFind = FindFirstFileA((std::string(TargetDirectoryName) + "*.psf.cix.xml").c_str(), &findData);
+		std::string defaultResult = "express.psf.cix.xml";
+		std::string result = "express.psf.cix.xml";
+		if (hFind != INVALID_HANDLE_VALUE) {
+			result = "";
+			do {
+				std::string fileName = findData.cFileName;
+				if (result.empty()) {
+					result = fileName;
+				}
+				if (fileName == defaultResult) {
+					result = defaultResult;
+				}
+			} while (FindNextFileA(hFind, &findData) != 0);
+			FindClose(hFind);
 		}
-		strcat_s(DescriptionFileName, strlen(TargetDirectoryName) + 22, "express.psf.cix.xml");
+		DescriptionFileName = (char*)FDIAlloc(sizeof(char) * strlen(TargetDirectoryName) + 2 + result.size());
+		strcpy_s(DescriptionFileName, strlen(TargetDirectoryName) + 2 + result.size(), TargetDirectoryName);
+		strcat_s(DescriptionFileName, strlen(TargetDirectoryName) + 2 + result.size(), result.c_str());
 
 		// Execute CAB extracting function
 		CABFilePart = strdupWtoA(CP_ACP, CABFilePartPointer);
